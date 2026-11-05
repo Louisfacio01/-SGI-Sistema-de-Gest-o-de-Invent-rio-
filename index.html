@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>TechStore - Painel</title>
+    <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+
+    <div class="glass-panel">
+        <h1>TechStore SGI</h1>
+        <p>Controle de Estoque</p>
+
+        <div style="margin: 20px 0;">
+            <a href="/produto/novo" class="btn-glass">+ Novo Ativo</a>
+            <a href="/movimentacao" class="btn-glass">Lançar Movimentação</a>
+        </div>
+
+        <table class="glass-table">
+            <thead>
+                <tr>
+                    <th>SKU</th>
+                    <th>Ativo</th>
+                    <th>Fabricante</th>
+                    <th>Categoria</th>
+                    <th>Fornecedor</th>
+                    <th>Preço</th>
+                    <th>Saldo</th>
+                    <th>Localização</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in produtos %}
+                <tr>
+                    <td>{{ item.sku }}</td>
+                    <td>{{ item.nome_comercial }}</td>
+                    <td>{{ item.fabricante }}</td>
+                    <td>{{ item.categoria }}</td>
+                    <td>{{ item.fornecedor }}</td>
+                    <td>R$ {{ item.preco_venda }}</td>
+                    <td>{{ item.quantidade_estoque }}</td>
+                    <td>{{ item.localizacao }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+</body>
+</html>

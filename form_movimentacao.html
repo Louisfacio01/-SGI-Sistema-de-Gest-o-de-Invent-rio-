@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>TechStore - Lançar Movimentação</title>
+    <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+    <div class="glass-panel">
+        <h1>Lançar Movimentação</h1>
+        <p>Registar entrada ou saída de stock</p>
+
+        <form action="/movimentacao" method="POST">
+            <div class="form-group">
+                <label>Produto:</label>
+                <select name="id_produto" class="form-control" required>
+                    <option value="">Selecione um produto</option>
+                    {% for produto in produtos %}
+                        <option value="{{ produto.id_produto }}">{{ produto.sku }} - {{ produto.nome_comercial }} (Stock: {{ produto.quantidade_estoque }})</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>Tipo de Movimentação:</label>
+                <select name="tipo_operacao" class="form-control" required>
+                    <option value="Entrada">Entrada</option>
+                    <option value="Saída">Saída</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>Quantidade:</label>
+                <input type="number" name="quantidade" class="form-control" required min="1">
+            </div>
+
+            <div class="form-group">
+                <label>Justificativa:</label>
+                <input type="text" name="justificativa" class="form-control" required placeholder="Ex: Reposição, Venda, Avaria...">
+            </div>
+
+            <div class="form-actions">
+                <button type="submit" class="btn-glass">Registar Movimentação</button>
+                <a href="/" class="btn-glass" style="text-decoration: none;">Voltar</a>
+            </div>
+        </form>
+    </div>
+</body>
+</html>
