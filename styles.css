@@ -97,3 +97,43 @@ body {
     gap: 10px;
     margin-top: 20px;
 }
+
+/* --- ESTILOS RESPONSIVOS PARA MOBILE E TABLET --- */
+
+/* Torna as tabelas responsivas com scroll horizontal se o ecrã for pequeno */
+@media screen and (max-width: 768px) {
+    body {
+        padding: 10px;
+    }
+
+    .glass-panel {
+        width: 100%;
+        padding: 15px;
+        box-sizing: border-box;
+    }
+
+    /* Permite deslizar a tabela para os lados no telemóvel sem estragar o design */
+    table, .glass-table {
+        display: block;
+        width: 100%;
+        overflow-x: auto;
+        white-space: nowrap;
+    }
+
+    /* Ajusta os botões e inputs para ocuparem o espaço ideal em telas menores */
+    input.form-control, select.form-control, button, .btn-glass {
+        width: 100%;
+        box-sizing: border-box;
+        margin-bottom: 10px;
+    }
+
+    .form-actions {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
+    
+    .form-actions a {
+        text-align: center;
+    }
+}

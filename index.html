@@ -2,6 +2,7 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>TechStore - Painel</title>
     <link rel="stylesheet" href="/styles.css">
 </head>
@@ -11,40 +12,72 @@
         <h1>TechStore SGI</h1>
         <p>Controle de Estoque</p>
 
-        <div style="margin: 20px 0;">
+        <!-- Botões de Ação -->
+        <div style="margin: 20px 0; display: flex; gap: 10px; flex-wrap: wrap;">
             <a href="/produto/novo" class="btn-glass">+ Novo Ativo</a>
             <a href="/movimentacao" class="btn-glass">Lançar Movimentação</a>
+            <!-- Botão que abre a div de exclusão -->
+            <button onclick="toggleExcluirDiv()" class="btn-glass" style="background: rgba(255, 75, 75, 0.2); border-color: rgba(255, 75, 75, 0.4); color: #ff6b6b; cursor: pointer;">Excluir Ativo</button>
         </div>
 
-        <table class="glass-table">
-            <thead>
-                <tr>
-                    <th>SKU</th>
-                    <th>Ativo</th>
-                    <th>Fabricante</th>
-                    <th>Categoria</th>
-                    <th>Fornecedor</th>
-                    <th>Preço</th>
-                    <th>Saldo</th>
-                    <th>Localização</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for item in produtos %}
-                <tr>
-                    <td>{{ item.sku }}</td>
-                    <td>{{ item.nome_comercial }}</td>
-                    <td>{{ item.fabricante }}</td>
-                    <td>{{ item.categoria }}</td>
-                    <td>{{ item.fornecedor }}</td>
-                    <td>R$ {{ item.preco_venda }}</td>
-                    <td>{{ item.quantidade_estoque }}</td>
-                    <td>{{ item.localizacao }}</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+        <!-- Div de Exclusão (inicialmente oculta) -->
+        <div id="painel-excluir" style="display: none; background: rgba(255, 255, 255, 0.05); padding: 15px; border-radius: 12px; margin-bottom: 20px; border: 1px solid rgba(255, 75, 75, 0.3);">
+            <h3 style="margin-top: 0; font-size: 16px; color: #ff6b6b;">Painel de Exclusão</h3>
+            <form action="/produto/excluir-selecionado" method="POST" onsubmit="return confirm('Tem a certeza que deseja excluir este ativo?');" style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
+                <select name="id_produto" class="form-control" style="flex: 1; min-width: 220px;" required>
+                    <option value="">Selecione o produto para excluir...</option>
+                    {% for item in produtos %}
+                    <option value="{{ item.id_produto }}">{{ item.sku }} - {{ item.nome_comercial }}</option>
+                    {% endfor %}
+                </select>
+                <button type="submit" class="btn-glass" style="background: rgba(255, 75, 75, 0.3); border-color: rgba(255, 75, 75, 0.5); color: #ff6b6b; cursor: pointer;">Confirmar Exclusão</button>
+            </form>
+        </div>
+
+        <!-- Tabela Responsiva -->
+        <div class="table-responsive">
+            <table class="glass-table">
+                <thead>
+                    <tr>
+                        <th>SKU</th>
+                        <th>Ativo</th>
+                        <th>Fabricante</th>
+                        <th>Categoria</th>
+                        <th>Fornecedor</th>
+                        <th>Preço</th>
+                        <th>Saldo</th>
+                        <th>Localização</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in produtos %}
+                    <tr>
+                        <td>{{ item.sku }}</td>
+                        <td>{{ item.nome_comercial }}</td>
+                        <td>{{ item.fabricante }}</td>
+                        <td>{{ item.categoria }}</td>
+                        <td>{{ item.fornecedor }}</td>
+                        <td>R$ {{ "%.2f"|format(item.preco_venda) }}</td>
+                        <td>{{ item.quantidade_estoque }}</td>
+                        <td>{{ item.localizacao }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
     </div>
+
+    <!-- Script simples para abrir/fechar a div -->
+    <script>
+        function toggleExcluirDiv() {
+            var painel = document.getElementById('painel-excluir');
+            if (painel.style.display === 'none' || painel.style.display === '') {
+                painel.style.display = 'block';
+            } else {
+                painel.style.display = 'none';
+            }
+        }
+    </script>
 
 </body>
 </html>

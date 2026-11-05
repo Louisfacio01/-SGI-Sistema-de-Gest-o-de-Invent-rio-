@@ -40,34 +40,35 @@ def novo_produto():
     cursor = conn.cursor()
 
     if request.method == "POST":
-        sku = request.form["sku"].strip()
-        nome_comercial = request.form["nome_comercial"].strip()
-        fabricante = request.form["fabricante"].strip()
-        especificacao_tecnica = request.form.get("especificacao_tecnica", "")
-        modalidade_licenciamento = request.form.get("modalidade_licenciamento", "N/A")
-        preco_venda = float(request.form["preco_venda"])
-        quantidade_estoque = int(request.form["quantidade_estoque"])
-        localizacao = request.form["localizacao"].strip()
-        id_categoria = int(request.form["id_categoria"])
-        id_fornecedor = int(request.form["id_fornecedor"])
-
         try:
+            sku = request.form["sku"].strip()
+            nome_comercial = request.form["nome_comercial"].strip()
+            fabricante = request.form["fabricante"].strip()
+            classificacao = request.form["classificacao"]
+            especificacao_tecnica = request.form.get("especificacao_tecnica", "")
+            modalidade_licenciamento = request.form.get("modalidade_licenciamento", "N/A")
+            preco_venda = float(request.form["preco_venda"])
+            quantidade_estoque = int(request.form["quantidade_estoque"])
+            localizacao = request.form["localizacao"].strip()
+            id_categoria = int(request.form["id_categoria"])
+            id_fornecedor = int(request.form["id_fornecedor"])
+
             cursor.execute("""
-                INSERT INTO Produto (sku, nome_comercial, fabricante, especificacao_tecnica,
+                INSERT INTO Produto (sku, nome_comercial, fabricante, classificacao, especificacao_tecnica,
                                      modalidade_licenciamento, preco_venda, quantidade_estoque,
                                      localizacao, id_categoria, id_fornecedor)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """, (sku, nome_comercial, fabricante, especificacao_tecnica,
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (sku, nome_comercial, fabricante, classificacao, especificacao_tecnica,
                   modalidade_licenciamento, preco_venda, quantidade_estoque,
                   localizacao, id_categoria, id_fornecedor))
+            
             conn.commit()
             flash("Ativo cadastrado com sucesso!", "success")
             return redirect(url_for("index"))
         except Exception as e:
             conn.rollback()
-            flash(f"Erro ao cadastrar ativo: {e}", "danger")
-        finally:
             conn.close()
+            return f"Erro crítico ao inserir no SQL Server: {e}"
 
     cursor.execute("SELECT id_categoria, nome FROM Categoria ORDER BY nome")
     categorias = [dict(zip([column[0] for column in cursor.description], row)) for row in cursor.fetchall()]
@@ -77,7 +78,7 @@ def novo_produto():
     
     conn.close()
     return render_template("form_produto.html", categorias=categorias, fornecedores=fornecedores)
-
+    
 @app.route('/movimentacao', methods=['GET', 'POST'])
 def movimentacao():
     conn = get_db_connection()
@@ -125,6 +126,55 @@ def movimentacao():
     produtos = [dict(zip([column[0] for column in cursor.description], row)) for row in cursor.fetchall()]
     conn.close()
     return render_template("form_movimentacao.html", produtos=produtos)
+
+@app.route('/produto/excluir-selecionado', methods=['POST'])
+def excluir_selecionado():
+    id_produto = request.form.get("id_produto")
+    if not id_produto:
+        flash("Nenhum produto selecionado.", "danger")
+        return redirect(url_for('index'))
+        
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        # Apaga primeiro as movimentações associadas para respeitar a chave estrangeira
+        cursor.execute("DELETE FROM Movimentacao WHERE id_produto = ?", (id_produto,))
+        # Depois apaga o produto
+        cursor.execute("DELETE FROM Produto WHERE id_produto = ?", (id_produto,))
+        conn.commit()
+        flash("Ativo excluído com sucesso!", "success")
+    except Exception as e:
+        conn.rollback()
+        flash(f"Erro ao excluir ativo: {e}", "danger")
+    finally:
+        conn.close()
+    return redirect(url_for('index'))
+
+@app.route('/produto/excluir-pagina', methods=['GET', 'POST'])
+def excluir_produto_pagina():
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    if request.method == 'POST':
+        id_produto = request.form.get("id_produto")
+        if id_produto:
+            try:
+                # Apaga as movimentações para não dar erro de chave estrangeira
+                cursor.execute("DELETE FROM Movimentacao WHERE id_produto = ?", (id_produto,))
+                cursor.execute("DELETE FROM Produto WHERE id_produto = ?", (id_produto,))
+                conn.commit()
+                flash("Ativo excluído com sucesso!", "success")
+                return redirect(url_for('index'))
+            except Exception as e:
+                conn.rollback()
+                flash(f"Erro ao excluir ativo: {e}", "danger")
+            finally:
+                conn.close()
+
+    cursor.execute("SELECT id_produto, sku, nome_comercial FROM Produto ORDER BY nome_comercial")
+    produtos = [dict(zip([column[0] for column in cursor.description], row)) for row in cursor.fetchall()]
+    conn.close()
+    return render_template("form_excluir.html", produtos=produtos)
 
 if __name__ == '__main__':
     app.run(debug=True)
