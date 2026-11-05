@@ -177,4 +177,4 @@ def excluir_produto_pagina():
     return render_template("form_excluir.html", produtos=produtos)
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(host='0.0.0.0', port=5000, debug=True)
