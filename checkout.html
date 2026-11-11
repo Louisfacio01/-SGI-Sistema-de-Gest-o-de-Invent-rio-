@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TechStore - Checkout Transacional</title>
+    <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+
+    <div class="glass-panel" style="max-width: 700px;">
+        <div class="user-bar">
+            <h2 style="margin: 0; font-size: 20px;">🛒 Frente de Caixa (PDV)</h2>
+            <a href="/" class="btn-glass" style="font-size: 13px;">Voltar ao Catálogo</a>
+        </div>
+
+          {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                              {% for category, message in messages %}
+                                        <div class="{% if category == 'success' %}alert-success-glass{% else %}alert-danger-glass{% endif %}">
+                    {{ message }}
+                                        </div>
+                              {% endfor %}
+                    {% endif %}
+          {% endwith %}
+
+        <form method="POST" action="/venda/checkout">
+            <div style="display: flex; gap: 15px; margin-bottom: 15px; flex-wrap: wrap;">
+                <div style="flex: 1; min-width: 250px;">
+                    <label style="font-size: 13px; display: block; margin-bottom: 5px;">Nome do Cliente / Empresa</label>
+                    <input type="text" name="cliente_nome" class="form-control" placeholder="Ex: Empresa Exemplo S.A." required>
+                </div>
+                <div style="flex: 1; min-width: 250px;">
+                    <label style="font-size: 13px; display: block; margin-bottom: 5px;">Documento (CPF / CNPJ)</label>
+                    <input type="text" name="cliente_documento" class="form-control" placeholder="00.000.000/0001-00" required>
+                </div>
+            </div>
+
+            <div style="margin-bottom: 15px;">
+                <label style="font-size: 13px; display: block; margin-bottom: 5px;">Selecione o Produto</label>
+                <select name="produto_id" class="form-select" required>
+                    <option value="" disabled selected>Escolha um item disponível em estoque...</option>
+                    {% for p in produtos %}
+                        <option value="{{ p[0] }}">{{ p[1] }} - R$ {{ "%.2f"|format(p[2]) }} (Disponível: {{ p[3] }})</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div style="display: flex; gap: 15px; margin-bottom: 25px; flex-wrap: wrap;">
+                <div style="flex: 1; min-width: 200px;">
+                    <label style="font-size: 13px; display: block; margin-bottom: 5px;">Quantidade</label>
+                    <input type="number" name="quantidade" class="form-control" value="1" min="1" required>
+                </div>
+                <div style="flex: 1; min-width: 200px;">
+                    <label style="font-size: 13px; display: block; margin-bottom: 5px;">Forma de Pagamento</label>
+                    <select name="forma_pagamento" class="form-select" required>
+                        <option value="PIX">PIX</option>
+                        <option value="CARTAO_CREDITO">Cartão de Crédito</option>
+                        <option value="BOLETO_FATURADO">Boleto Faturado B2B</option>
+                    </select>
+                </div>
+            </div>
+
+            <button type="submit" class="btn-glass" style="width: 100%; background: rgba(40, 167, 69, 0.3); border-color: rgba(40, 167, 69, 0.5); color: #fff; cursor: pointer; padding: 12px;">Finalizar Venda (Garantia ACID)</button>
+        </form>
+    </div>
+
+</body>
+</html>

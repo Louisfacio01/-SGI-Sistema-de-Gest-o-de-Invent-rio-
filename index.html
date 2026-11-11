@@ -3,28 +3,53 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TechStore - Painel</title>
+    <title>TechStore - Painel SGI</title>
     <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
 
     <div class="glass-panel">
-        <h1>TechStore SGI</h1>
-        <p>Controle de Estoque</p>
-
-        <!-- Botões de Ação -->
-        <div style="margin: 20px 0; display: flex; gap: 10px; flex-wrap: wrap;">
-            <a href="/produto/novo" class="btn-glass">+ Novo Ativo</a>
-            <a href="/movimentacao" class="btn-glass">Lançar Movimentação</a>
-            <!-- Botão que abre a div de exclusão -->
-            <button onclick="toggleExcluirDiv()" class="btn-glass" style="background: rgba(255, 75, 75, 0.2); border-color: rgba(255, 75, 75, 0.4); color: #ff6b6b; cursor: pointer;">Excluir Ativo</button>
+        <!-- Barra Superior com Usuário e Logout -->
+        <div class="user-bar">
+            <div>
+                <h1 style="margin: 0; font-size: 22px;">TechStore SGI</h1>
+                <p style="margin: 0; font-size: 13px; opacity: 0.7;">
+                    Usuário: <strong>{{ session.get('nome', 'Operador') }}</strong>
+                    <span class="badge-perfil">{{ session.get('perfil', 'OPERADOR') }}</span>
+                </p>
+            </div>
+            <a href="/logout" class="btn-glass" style="background: rgba(255, 75, 75, 0.2); border-color: rgba(255, 75, 75, 0.4); margin-top: 10px; color: #ff6b6b; font-size: 13px;">🚪 Sair</a>
         </div>
 
-        <!-- Div de Exclusão (inicialmente oculta) -->
-        <div id="painel-excluir" style="display: none; background: rgba(255, 255, 255, 0.05); padding: 15px; border-radius: 12px; margin-bottom: 20px; border: 1px solid rgba(255, 75, 75, 0.3);">
-            <h3 style="margin-top: 0; font-size: 16px; color: #ff6b6b;">Painel de Exclusão</h3>
-            <form action="/produto/excluir-selecionado" method="POST" onsubmit="return confirm('Tem a certeza que deseja excluir este ativo?');" style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
-                <select name="id_produto" class="form-control" style="flex: 1; min-width: 220px;" required>
+        <!-- Mensagens Flash -->
+{% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+        {% for category, message in messages %}
+            <div class="{% if category == 'success' %}alert-success-glass{% else %}alert-danger-glass{% endif %}">
+                {{ message }}
+            </div>
+        {% endfor %}
+    {% endif %}
+{% endwith %}
+
+        <!-- Ações do Sistema -->
+        <div style="margin: 20px 0; display: flex; gap: 10px; flex-wrap: wrap;">
+            <a href="/venda/checkout" class="btn-glass" style="background: rgba(13, 202, 240, 0.2); border-color: rgba(13, 202, 240, 0.4); color: #0dcaf0;">🛒 Frente de Caixa (PDV)</a>
+            <a href="/produto/novo" class="btn-glass">+ Novo Ativo</a>
+            <a href="/movimentacao" class="btn-glass">Lançar Movimentação</a>
+
+            <!-- RBAC: Exclusão visível apenas para Gerente -->
+            {% if session.get('perfil') == 'GERENTE' %}
+                <button onclick="toggleExcluirDiv()" class="btn-glass" style="background: rgba(255, 75, 75, 0.2); border-color: rgba(255, 75, 75, 0.4); color: #ff6b6b; cursor: pointer;">Excluir Ativo</button>
+            {% endif %}
+        </div>
+
+        <!-- Painel de Exclusão (Gerencial) -->
+        {% if session.get('perfil') == 'GERENTE' %}
+        <div id="painel-excluir" style="display: none; background: rgba(255, 255, 255, 0.03); padding: 15px; border-radius: 12px; margin-bottom: 20px; border: 1px solid rgba(255, 75, 75, 0.3);">
+            <h3 style="margin-top: 0; font-size: 15px; color: #ff6b6b;">Painel de Exclusão de Ativos</h3>
+            <form action="/produto/excluir-selecionado" method="POST" onsubmit="return confirm('Tem certeza que deseja excluir este ativo e seus vínculos?');" style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
+                <select name="id_produto" class="form-select" style="flex: 1; min-width: 220px;" required>
                     <option value="">Selecione o produto para excluir...</option>
                     {% for item in produtos %}
                     <option value="{{ item.id_produto }}">{{ item.sku }} - {{ item.nome_comercial }}</option>
@@ -33,8 +58,9 @@
                 <button type="submit" class="btn-glass" style="background: rgba(255, 75, 75, 0.3); border-color: rgba(255, 75, 75, 0.5); color: #ff6b6b; cursor: pointer;">Confirmar Exclusão</button>
             </form>
         </div>
+        {% endif %}
 
-        <!-- Tabela Responsiva -->
+        <!-- Tabela -->
         <div class="table-responsive">
             <table class="glass-table">
                 <thead>
@@ -67,14 +93,11 @@
         </div>
     </div>
 
-    <!-- Script simples para abrir/fechar a div -->
     <script>
         function toggleExcluirDiv() {
             var painel = document.getElementById('painel-excluir');
-            if (painel.style.display === 'none' || painel.style.display === '') {
-                painel.style.display = 'block';
-            } else {
-                painel.style.display = 'none';
+            if (painel) {
+                painel.style.display = (painel.style.display === 'none' || painel.style.display === '') ? 'block' : 'none';
             }
         }
     </script>

@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TechStore - Recibo de Faturamento</title>
+    <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+
+    <div class="glass-receipt" style="max-width: 750px;">
+        <div style="text-align: center; border-bottom: 1px solid rgba(255,255,255,0.15); padding-bottom: 20px; margin-bottom: 20px;">
+            <h2 style="margin: 0; font-size: 22px;">TechStore Informática & Serviços</h2>
+            <p style="margin: 5px 0; font-size: 13px; opacity: 0.7;">Comprovante Oficial de Transação / Ordem de Faturamento</p>
+            <span style="background: rgba(13, 202, 240, 0.2); border: 1px solid rgba(13, 202, 240, 0.4); color: #0dcaf0; padding: 4px 10px; border-radius: 8px; font-size: 12px; display: inline-block; margin-top: 5px;">Pedido: {{ venda[1] }}</span>
+        </div>
+
+        <div style="display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 20px; flex-wrap: wrap; gap: 10px;">
+            <div>
+                <p style="margin: 3px 0;"><strong>Data/Hora:</strong> {{ venda[2] }}</p>
+                <p style="margin: 3px 0;"><strong>Operador:</strong> {{ venda[7] }}</p>
+            </div>
+            <div style="text-align: right;">
+                <p style="margin: 3px 0;"><strong>Cliente:</strong> {{ venda[3] }}</p>
+                <p style="margin: 3px 0;"><strong>Documento:</strong> {{ venda[4] }}</p>
+                <p style="margin: 3px 0;"><strong>Pagamento:</strong> {{ venda[5] }}</p>
+            </div>
+        </div>
+
+        <h3 style="font-size: 15px; margin-bottom: 10px;">Itens Adquiridos</h3>
+        <div class="table-responsive">
+            <table class="glass-table">
+                <thead>
+                    <tr>
+                        <th>Produto</th>
+                        <th style="text-align: center;">Qtd</th>
+                        <th style="text-align: right;">Preço Unit.</th>
+                        <th style="text-align: right;">Subtotal</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in itens %}
+                    <tr>
+                        <td>{{ item[0] }}</td>
+                        <td style="text-align: center;">{{ item[1] }}</td>
+                        <td style="text-align: right;">R$ {{ "%.2f"|format(item[2]) }}</td>
+                        <td style="text-align: right;">R$ {{ "%.2f"|format(item[3]) }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 20px; padding-top: 15px; border-top: 1px solid rgba(255,255,255,0.15);">
+            <h3 style="margin: 0; font-size: 18px;">Total Geral:</h3>
+            <h3 style="margin: 0; font-size: 22px; color: #0dcaf0;">R$ {{ "%.2f"|format(venda[6]) }}</h3>
+        </div>
+
+        <div style="text-align: center; margin-top: 30px; display: flex; gap: 10px; justify-content: center;">
+            <a href="/" class="btn-glass">Voltar ao Início</a>
+            <button onclick="window.print()" class="btn-glass" style="background: rgba(13, 202, 240, 0.2); border-color: rgba(13, 202, 240, 0.4); color: #0dcaf0; cursor: pointer;">Imprimir / PDF</button>
+        </div>
+    </div>
+
+</body>
+</html>
