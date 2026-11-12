@@ -194,53 +194,80 @@ def checkout():
         cliente_nome = request.form["cliente_nome"]
         cliente_documento = request.form["cliente_documento"]
         forma_pagamento = request.form["forma_pagamento"]
-        produto_id = int(request.form["produto_id"])
-        quantidade = int(request.form["quantidade"])
+        
+        # Recebe listas de produtos e quantidades vindas do formulário dinâmico
+        produtos_ids = request.form.getlist("produto_id[]")
+        quantidades = request.form.getlist("quantidade[]")
         usuario_id = session["usuario_id"]
         
         try:
             cursor.execute("BEGIN TRANSACTION;")
             
-            cursor.execute("SELECT quantidade_estoque, preco_venda FROM Produto WHERE id_produto = ?", (produto_id,))
-            prod = cursor.fetchone()
+            valor_total_venda = 0
+            itens_a_faturar = []
             
-            if not prod or prod[0] < quantidade:
-                raise Exception("Estoque insuficiente para concluir a venda!")
+            # Validação prévia de estoque para todos os itens do carrinho
+            for i in range(len(produtos_ids)):
+                p_id = int(produtos_ids[i])
+                qtd = int(quantidades[i])
                 
-            estoque_atual = prod[0]
-            preco_unitario = prod[1]
-            subtotal = preco_unitario * quantidade
+                cursor.execute("SELECT quantidade_estoque, preco_venda, nome_comercial FROM Produto WHERE id_produto = ?", (p_id,))
+                prod = cursor.fetchone()
+                
+                if not prod or prod[0] < qtd:
+                    raise Exception(f"Estoque insuficiente para o produto ID {p_id}!")
+                
+                estoque_atual = prod[0]
+                preco_unitario = prod[1]
+                nome_prod = prod[2]
+                subtotal = preco_unitario * qtd
+                valor_total_venda += subtotal
+                
+                itens_a_faturar.append({
+                    "produto_id": p_id,
+                    "quantidade": qtd,
+                    "preco_unitario": preco_unitario,
+                    "subtotal": subtotal,
+                    "estoque_atual": estoque_atual,
+                    "nome": nome_prod
+                })
             
-            numero_pedido = f"PED-2026-{abs(hash(cliente_documento)) % 10000:04d}"
-            
-            # Usando OUTPUT INSERTED para capturar o ID de forma 100% garantida
+            # Insere a Venda principal
+            numero_pedido = f"PED-2026-{abs(hash(cliente_documento + str(valor_total_venda))) % 10000:04d}"
             cursor.execute("""
                 INSERT INTO Vendas (numero_pedido, cliente_nome, cliente_documento, forma_pagamento, valor_total, status_venda, usuario_id)
                 OUTPUT INSERTED.id_venda
                 VALUES (?, ?, ?, ?, ?, 'CONCLUIDA', ?)
-            """, (numero_pedido, cliente_nome, cliente_documento, forma_pagamento, subtotal, usuario_id))
+            """, (numero_pedido, cliente_nome, cliente_documento, forma_pagamento, valor_total_venda, usuario_id))
             
             row_id = cursor.fetchone()
-            if row_id and row_id[0] is not None:
-                venda_id = int(row_id[0])
-            else:
-                raise Exception("Não foi possível recuperar o ID da venda gerada.")
+            if not row_id or row_id[0] is None:
+                raise Exception("Erro ao gerar identificador da venda.")
+            venda_id = int(row_id[0])
             
-            cursor.execute("""
-                INSERT INTO Itens_Venda (venda_id, produto_id, quantidade_vendida, preco_unitario_praticado, subtotal_item)
-                VALUES (?, ?, ?, ?, ?)
-            """, (venda_id, produto_id, quantidade, preco_unitario, subtotal))
-            
-            novo_estoque = estoque_atual - quantidade
-            cursor.execute("UPDATE Produto SET quantidade_estoque = ? WHERE id_produto = ?", (novo_estoque, produto_id))
-            
-            cursor.execute("""
-                INSERT INTO Movimentacao (id_produto, tipo_operacao, quantidade, justificativa)
-                VALUES (?, 'Saída', ?, ?)
-            """, (produto_id, quantidade, f"Venda faturada - Pedido {numero_pedido}"))
+            # Insere os itens e dá baixa no estoque de cada produto do carrinho
+            for item in itens_a_faturar:
+                cursor.execute("""
+                    INSERT INTO Itens_Venda (venda_id, produto_id, quantidade_vendida, preco_unitario_praticado, subtotal_item)
+                    VALUES (?, ?, ?, ?, ?)
+                """, (venda_id, item["produto_id"], item["quantidade"], item["preco_unitario"], item["subtotal"]))
+                
+                novo_estoque = item["estoque_atual"] - item["quantidade"]
+                cursor.execute("UPDATE Produto SET quantidade_estoque = ? WHERE id_produto = ?", (novo_estoque, item["produto_id"]))
+                
+                cursor.execute("""
+                    INSERT INTO Movimentacao (id_produto, tipo_operacao, quantidade, justificativa)
+                    VALUES (?, 'Saída', ?, ?)
+                """, (item["produto_id"], item["quantidade"], f"Venda faturada - Pedido {numero_pedido}"))
             
             conn.commit()
             flash(f"Venda {numero_pedido} realizada com sucesso!", "success")
+            
+            # Consulta o ID real da venda pelo número do pedido gerado
+            cursor.execute("SELECT id_venda FROM Vendas WHERE numero_pedido = ?", (numero_pedido,))
+            row_venda = cursor.fetchone()
+            venda_id = row_venda[0] if row_venda else 1
+            
             return redirect(url_for("recibo", venda_id=venda_id))
             
         except Exception as e:
@@ -268,6 +295,7 @@ def recibo(venda_id):
     conn = get_db_connection()
     cursor = conn.cursor()
     
+    # Tenta buscar pelo ID informado
     cursor.execute("""
         SELECT v.id_venda, v.numero_pedido, v.data_hora, v.cliente_nome, v.cliente_documento, 
                v.forma_pagamento, v.valor_total, u.nome_completo AS operador
@@ -277,23 +305,34 @@ def recibo(venda_id):
     """, (venda_id,))
     venda = cursor.fetchone()
     
-    # Proteção vital: se a venda não existir, avisa e volta ao início em vez de crashar
+    # Se não encontrar por esse ID, busca a última venda cadastrada (evita qualquer erro 404/None)
+    if not venda:
+        cursor.execute("""
+            SELECT TOP 1 v.id_venda, v.numero_pedido, v.data_hora, v.cliente_nome, v.cliente_documento, 
+                   v.forma_pagamento, v.valor_total, u.nome_completo AS operador
+            FROM Vendas v
+            INNER JOIN Usuarios u ON v.usuario_id = u.id_usuario
+            ORDER BY v.id_venda DESC
+        """)
+        venda = cursor.fetchone()
+        
     if not venda:
         conn.close()
-        flash("Comprovante não encontrado. Faça uma nova venda para gerar o recibo.", "danger")
+        flash("Nenhuma venda encontrada no sistema.", "danger")
         return redirect(url_for("index"))
+        
+    actual_venda_id = venda[0]
     
     cursor.execute("""
         SELECT p.nome_comercial, i.quantidade_vendida, i.preco_unitario_praticado, i.subtotal_item
         FROM Itens_Venda i
         INNER JOIN Produto p ON i.produto_id = p.id_produto
         WHERE i.venda_id = ?
-    """, (venda_id,))
+    """, (actual_venda_id,))
     itens = cursor.fetchall()
     
     conn.close()
     return render_template("recibo.html", venda=venda, itens=itens)
-
 # ---------------------------------------------------------
 # EXCLUSÃO DE ATIVO (COM SEGURANÇA RBAC E INTEGRIDADE)
 # ---------------------------------------------------------

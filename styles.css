@@ -191,3 +191,33 @@ body {
     background: #203a43;
     color: #fff;
 }
+
+.form-select option {
+    gap: 10px;
+}
+
+/* Oculta botões e barras desnecessárias na hora de imprimir o recibo */
+@media print {
+    body {
+        background: #fff !important;
+        color: #000 !important;
+        padding: 0;
+    }
+    .glass-receipt {
+        background: #fff !important;
+        border: none !important;
+        box-shadow: none !important;
+        color: #000 !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        padding: 0 !important;
+    }
+    .glass-table th, .glass-table td {
+        color: #000 !important;
+        border-bottom: 1px solid #ccc !important;
+        background: transparent !important;
+    }
+    .btn-glass {
+        display: none !important; /* Esconde os botões "Voltar" e "Imprimir" no papel/PDF */
+    }
+}

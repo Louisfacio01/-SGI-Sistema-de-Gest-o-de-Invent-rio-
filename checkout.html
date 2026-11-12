@@ -8,24 +8,24 @@
 </head>
 <body>
 
-    <div class="glass-panel" style="max-width: 700px;">
+    <div class="glass-panel" style="max-width: 800px;">
         <div class="user-bar">
-            <h2 style="margin: 0; font-size: 20px;">🛒 Frente de Caixa (PDV)</h2>
-            <a href="/" class="btn-glass" style="font-size: 13px;">Voltar ao Catálogo</a>
+            <h2 style="margin: 0; font-size: 20px;">🛒 Frente de Caixa (PDV - Múltiplos Itens)</h2>
+            <a href="/" class="btn-glass-secondary">Voltar ao Catálogo</a>
         </div>
 
-          {% with messages = get_flashed_messages(with_categories=true) %}
-                    {% if messages %}
-                              {% for category, message in messages %}
-                                        <div class="{% if category == 'success' %}alert-success-glass{% else %}alert-danger-glass{% endif %}">
-                    {{ message }}
-                                        </div>
-                              {% endfor %}
-                    {% endif %}
-          {% endwith %}
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="{% if category == 'success' %}alert-success-glass{% else %}alert-danger-glass{% endif %}">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
 
         <form method="POST" action="/venda/checkout">
-            <div style="display: flex; gap: 15px; margin-bottom: 15px; flex-wrap: wrap;">
+            <div style="display: flex; gap: 15px; margin-bottom: 20px; flex-wrap: wrap;">
                 <div style="flex: 1; min-width: 250px;">
                     <label style="font-size: 13px; display: block; margin-bottom: 5px;">Nome do Cliente / Empresa</label>
                     <input type="text" name="cliente_nome" class="form-control" placeholder="Ex: Empresa Exemplo S.A." required>
@@ -36,34 +36,61 @@
                 </div>
             </div>
 
-            <div style="margin-bottom: 15px;">
-                <label style="font-size: 13px; display: block; margin-bottom: 5px;">Selecione o Produto</label>
-                <select name="produto_id" class="form-select" required>
-                    <option value="" disabled selected>Escolha um item disponível em estoque...</option>
-                    {% for p in produtos %}
-                        <option value="{{ p[0] }}">{{ p[1] }} - R$ {{ "%.2f"|format(p[2]) }} (Disponível: {{ p[3] }})</option>
-                    {% endfor %}
+            <h3 style="font-size: 15px; margin-bottom: 10px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 5px;">Itens do Carrinho</h3>
+            
+            <div id="carrinho-itens">
+                <div class="item-linha" style="display: flex; gap: 10px; margin-bottom: 12px; align-items: center; flex-wrap: wrap;">
+                    <div style="flex: 3; min-width: 250px;">
+                        <select name="produto_id[]" class="form-select" required>
+                            <option value="" disabled selected>Escolha um produto...</option>
+                            {% for p in produtos %}
+                                <option value="{{ p[0] }}">{{ p[1] }} - R$ {{ "%.2f"|format(p[2]) }} (Disp: {{ p[3] }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div style="flex: 1; min-width: 100px;">
+                        <input type="number" name="quantidade[]" class="form-control" value="1" min="1" required placeholder="Qtd">
+                    </div>
+                    <div>
+                        <button type="button" class="btn-glass" style="background: rgba(220, 53, 69, 0.2); border-color: rgba(220, 53, 69, 0.4); color: #ff6b6b; padding: 10px;" onclick="removerLinha(this)">❌</button>
+                    </div>
+                </div>
+            </div>
+
+            <button type="button" class="btn-glass" style="margin-bottom: 20px; font-size: 13px;" onclick="adicionarItem()">+ Adicionar Outro Produto</button>
+
+            <div style="margin-bottom: 25px; max-width: 300px;">
+                <label style="font-size: 13px; display: block; margin-bottom: 5px;">Forma de Pagamento</label>
+                <select name="forma_pagamento" class="form-select" required>
+                    <option value="PIX">PIX</option>
+                    <option value="CARTAO_CREDITO">Cartão de Crédito</option>
+                    <option value="BOLETO_FATURADO">Boleto Faturado B2B</option>
                 </select>
             </div>
 
-            <div style="display: flex; gap: 15px; margin-bottom: 25px; flex-wrap: wrap;">
-                <div style="flex: 1; min-width: 200px;">
-                    <label style="font-size: 13px; display: block; margin-bottom: 5px;">Quantidade</label>
-                    <input type="number" name="quantidade" class="form-control" value="1" min="1" required>
-                </div>
-                <div style="flex: 1; min-width: 200px;">
-                    <label style="font-size: 13px; display: block; margin-bottom: 5px;">Forma de Pagamento</label>
-                    <select name="forma_pagamento" class="form-select" required>
-                        <option value="PIX">PIX</option>
-                        <option value="CARTAO_CREDITO">Cartão de Crédito</option>
-                        <option value="BOLETO_FATURADO">Boleto Faturado B2B</option>
-                    </select>
-                </div>
-            </div>
-
-            <button type="submit" class="btn-glass" style="width: 100%; background: rgba(40, 167, 69, 0.3); border-color: rgba(40, 167, 69, 0.5); color: #fff; cursor: pointer; padding: 12px;">Finalizar Venda (Garantia ACID)</button>
+            <button type="submit" class="btn-glass" style="width: 100%; background: rgba(40, 167, 69, 0.3); border-color: rgba(40, 167, 69, 0.5); color: #fff; cursor: pointer; padding: 12px; font-weight: bold;">Finalizar Venda com Múltiplos Itens (Garantia ACID)</button>
         </form>
     </div>
+
+    <script>
+        function adicionarItem() {
+            const container = document.getElementById('carrinho-itens');
+            const primeiraLinha = container.querySelector('.item-linha');
+            const novaLinha = primeiraLinha.cloneNode(true);
+            novaLinha.querySelector('select').selectedIndex = 0;
+            novaLinha.querySelector('input').value = 1;
+            container.appendChild(novaLinha);
+        }
+
+        function removerLinha(botao) {
+            const linhas = document.querySelectorAll('.item-linha');
+            if (linhas.length > 1) {
+                botao.closest('.item-linha').remove();
+            } else {
+                alert("O carrinho precisa ter pelo menos um item.");
+            }
+        }
+    </script>
 
 </body>
 </html>
