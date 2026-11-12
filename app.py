@@ -195,18 +195,15 @@ def checkout():
         cliente_documento = request.form["cliente_documento"]
         forma_pagamento = request.form["forma_pagamento"]
         
-        # Recebe listas de produtos e quantidades vindas do formulário dinâmico
         produtos_ids = request.form.getlist("produto_id[]")
         quantidades = request.form.getlist("quantidade[]")
         usuario_id = session["usuario_id"]
         
         try:
-            cursor.execute("BEGIN TRANSACTION;")
-            
+            # Removido o BEGIN TRANSACTION manual para evitar conflito com o conn.commit() do pyodbc
             valor_total_venda = 0
             itens_a_faturar = []
             
-            # Validação prévia de estoque para todos os itens do carrinho
             for i in range(len(produtos_ids)):
                 p_id = int(produtos_ids[i])
                 qtd = int(quantidades[i])
@@ -232,20 +229,22 @@ def checkout():
                     "nome": nome_prod
                 })
             
-            # Insere a Venda principal
             numero_pedido = f"PED-2026-{abs(hash(cliente_documento + str(valor_total_venda))) % 10000:04d}"
+            
+            # Inserção da Venda principal
             cursor.execute("""
                 INSERT INTO Vendas (numero_pedido, cliente_nome, cliente_documento, forma_pagamento, valor_total, status_venda, usuario_id)
-                OUTPUT INSERTED.id_venda
                 VALUES (?, ?, ?, ?, ?, 'CONCLUIDA', ?)
             """, (numero_pedido, cliente_nome, cliente_documento, forma_pagamento, valor_total_venda, usuario_id))
             
+            # Pega o ID gerado com segurança máxima no SQL Server
+            cursor.execute("SELECT @@IDENTITY;")
             row_id = cursor.fetchone()
             if not row_id or row_id[0] is None:
                 raise Exception("Erro ao gerar identificador da venda.")
             venda_id = int(row_id[0])
             
-            # Insere os itens e dá baixa no estoque de cada produto do carrinho
+            # Inserção dos itens do carrinho
             for item in itens_a_faturar:
                 cursor.execute("""
                     INSERT INTO Itens_Venda (venda_id, produto_id, quantidade_vendida, preco_unitario_praticado, subtotal_item)
@@ -260,23 +259,20 @@ def checkout():
                     VALUES (?, 'Saída', ?, ?)
                 """, (item["produto_id"], item["quantidade"], f"Venda faturada - Pedido {numero_pedido}"))
             
-            conn.commit()
+            conn.commit() # Confirma e grava definitivamente no SQL Server
             flash(f"Venda {numero_pedido} realizada com sucesso!", "success")
-            
-            # Consulta o ID real da venda pelo número do pedido gerado
-            cursor.execute("SELECT id_venda FROM Vendas WHERE numero_pedido = ?", (numero_pedido,))
-            row_venda = cursor.fetchone()
-            venda_id = row_venda[0] if row_venda else 1
+            conn.close()
             
             return redirect(url_for("recibo", venda_id=venda_id))
             
         except Exception as e:
             conn.rollback()
             flash(f"Erro na transação (Operação Abortada): {str(e)}", "danger")
+            try:
+                conn.close()
+            except:
+                pass
             return redirect(url_for("checkout"))
-            
-        finally:
-            conn.close()
             
     cursor.execute("SELECT id_produto, nome_comercial, preco_venda, quantidade_estoque FROM Produto WHERE quantidade_estoque > 0")
     produtos = cursor.fetchall()
@@ -284,9 +280,7 @@ def checkout():
     
     return render_template("checkout.html", produtos=produtos)
 
-# ---------------------------------------------------------
-# TELA DE RECIBO / COMPROVANTE
-# ---------------------------------------------------------
+@app.route("/venda/recibo", defaults={"venda_id": 0})
 @app.route("/venda/recibo/<int:venda_id>")
 def recibo(venda_id):
     if "usuario_id" not in session:
@@ -295,7 +289,12 @@ def recibo(venda_id):
     conn = get_db_connection()
     cursor = conn.cursor()
     
-    # Tenta buscar pelo ID informado
+    # Se o ID for 0 ou inválido, busca sempre a última venda realizada na base de dados
+    if venda_id == 0:
+        cursor.execute("SELECT MAX(id_venda) FROM Vendas")
+        row_max = cursor.fetchone()
+        venda_id = row_max[0] if row_max and row_max[0] else 0
+        
     cursor.execute("""
         SELECT v.id_venda, v.numero_pedido, v.data_hora, v.cliente_nome, v.cliente_documento, 
                v.forma_pagamento, v.valor_total, u.nome_completo AS operador
@@ -305,30 +304,17 @@ def recibo(venda_id):
     """, (venda_id,))
     venda = cursor.fetchone()
     
-    # Se não encontrar por esse ID, busca a última venda cadastrada (evita qualquer erro 404/None)
-    if not venda:
-        cursor.execute("""
-            SELECT TOP 1 v.id_venda, v.numero_pedido, v.data_hora, v.cliente_nome, v.cliente_documento, 
-                   v.forma_pagamento, v.valor_total, u.nome_completo AS operador
-            FROM Vendas v
-            INNER JOIN Usuarios u ON v.usuario_id = u.id_usuario
-            ORDER BY v.id_venda DESC
-        """)
-        venda = cursor.fetchone()
-        
     if not venda:
         conn.close()
-        flash("Nenhuma venda encontrada no sistema.", "danger")
+        flash("Comprovante não encontrado.", "danger")
         return redirect(url_for("index"))
         
-    actual_venda_id = venda[0]
-    
     cursor.execute("""
         SELECT p.nome_comercial, i.quantidade_vendida, i.preco_unitario_praticado, i.subtotal_item
         FROM Itens_Venda i
         INNER JOIN Produto p ON i.produto_id = p.id_produto
         WHERE i.venda_id = ?
-    """, (actual_venda_id,))
+    """, (venda_id,))
     itens = cursor.fetchall()
     
     conn.close()
